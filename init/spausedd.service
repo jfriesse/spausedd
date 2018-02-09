@@ -1,0 +1,11 @@
+[Unit]
+Description= Scheduler Pause Detection Daemon
+Documentation=man:spausedd
+
+[Service]
+EnvironmentFile=-/etc/sysconfig/spausedd
+ExecStart=/usr/bin/spausedd -D
+Type=forking
+
+[Install]
+WantedBy=multi-user.target

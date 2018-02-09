@@ -29,9 +29,12 @@ $(PROGRAM_NAME)-$(VERSION).tar.gz:
 	rm -rf $(PROGRAM_NAME)-$(VERSION)
 
 clean:
-	rm -f $(PROGRAM_NAME)
+	rm -f $(PROGRAM_NAME) $(PROGRAM_NAME)-*.tar.gz
 
 dist: $(PROGRAM_NAME)-$(VERSION).tar.gz
 
 rpm: $(PROGRAM_NAME)-$(VERSION).tar.gz
 	rpmbuild -ba --define "_sourcedir $(PWD)" $(PROGRAM_NAME).spec
+
+rpm-systemd: $(PROGRAM_NAME)-$(VERSION).tar.gz
+	rpmbuild -ba --define "_sourcedir $(PWD)" --with systemd $(PROGRAM_NAME).spec
