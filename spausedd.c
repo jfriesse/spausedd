@@ -47,6 +47,7 @@
 
 #define NO_NS_IN_SEC		1000000000ULL
 #define NO_NS_IN_MSEC		1000000ULL
+#define NO_MSEC_IN_SEC		1000ULL
 
 /*
  * Globals
@@ -261,8 +262,8 @@ print_statistics(uint64_t tv_start)
 
 	tv_now = nano_current_get();
 	tv_diff = tv_now - tv_start;
-	log_printf(LOG_INFO, "During %0.4f ms runtime %s was %"PRIu64"x not scheduled on time",
-	    (double)tv_diff / NO_NS_IN_MSEC, PROGRAM_NAME, times_not_scheduled);
+	log_printf(LOG_INFO, "During %0.4fs runtime %s was %"PRIu64"x not scheduled on time",
+	    (double)tv_diff / NO_NS_IN_SEC, PROGRAM_NAME, times_not_scheduled);
 }
 
 static void
@@ -291,9 +292,9 @@ poll_run(uint64_t timeout)
 			display_statistics = 0;
 		}
 
-		log_printf(LOG_DEBUG, "now = %0.4f ms, max_diff = %0.4f ms, poll_timeout = %u ms",
-		    (double)tv_now / NO_NS_IN_MSEC, (double)tv_max_allowed_diff / NO_NS_IN_MSEC,
-		    poll_timeout);
+		log_printf(LOG_DEBUG, "now = %0.4fs, max_diff = %0.4fs, poll_timeout = %0.4fs",
+		    (double)tv_now / NO_NS_IN_SEC, (double)tv_max_allowed_diff / NO_NS_IN_SEC,
+		    (double)poll_timeout / NO_MSEC_IN_SEC);
 
 		if (poll_timeout < 0) {
 			poll_timeout = 0;
@@ -311,9 +312,9 @@ poll_run(uint64_t timeout)
 		tv_diff = tv_now - tv_prev;
 
 		if (tv_diff > tv_max_allowed_diff) {
-			log_printf(LOG_ERR, "Not scheduled for %0.4f ms (threshold is %0.4f ms)",
-			    (double)tv_diff / NO_NS_IN_MSEC,
-			    (double)tv_max_allowed_diff / NO_NS_IN_MSEC);
+			log_printf(LOG_ERR, "Not scheduled for %0.4fs (threshold is %0.4fs)",
+			    (double)tv_diff / NO_NS_IN_SEC,
+			    (double)tv_max_allowed_diff / NO_NS_IN_SEC);
 
 			times_not_scheduled++;
 		}
@@ -329,10 +330,11 @@ poll_run(uint64_t timeout)
 static void
 usage(void)
 {
-	printf("usage: %s [-dfhp] [-t timeout]\n", PROGRAM_NAME);
+	printf("usage: %s [-dDfhp] [-t timeout]\n", PROGRAM_NAME);
 	printf("\n");
 	printf("  -d            Display debug messages\n");
-	printf("  -f            Run foreground - do not daemonize\n");
+	printf("  -D            Run on background - daemonize\n");
+	printf("  -f            Run foreground - do not daemonize (default)\n");
 	printf("  -h            Show help\n");
 	printf("  -p            Do not set RR scheduler\n");
 	printf("  -t timeout    Set timeout value (default: %u)\n", DEFAULT_TIMEOUT);
@@ -348,17 +350,20 @@ main(int argc, char **argv)
 	char *ep;
 	int set_prio;
 
-	foreground = 0;
+	foreground = 1;
 	timeout = DEFAULT_TIMEOUT;
 	set_prio = 1;
 
-	while ((ch = getopt(argc, argv, "dfhpt:")) != -1) {
+	while ((ch = getopt(argc, argv, "dDfhpt:")) != -1) {
 		switch (ch) {
-		case 'f':
-			foreground = 1;
+		case 'D':
+			foreground = 0;
 			break;
 		case 'd':
 			log_debug = 1;
+			break;
+		case 'f':
+			foreground = 1;
 			break;
 		case 't':
 			tmpll = strtoll(optarg, &ep, 10);
