@@ -1,0 +1,60 @@
+.\"
+.\" Copyright (c) 2018, Red Hat, Inc.
+.\"
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND RED HAT, INC. DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL RED HAT, INC. BE LIABLE
+.\" FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+.\" OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+.\" CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" Author: Jan Friesse <jfriesse@redhat.com>
+.\"
+.Dd Feb 9, 2018
+.Dt SPAUSEDD 8
+.Os
+.Sh NAME
+.Nm spaused
+.Nd Utility to detect and log scheduler pause
+.Sh SYNOPSIS
+.Nm spausedd
+.Op Fl dDfhp
+.Op Fl t Ar timeout
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for detecting and logging scheduler pause. This means, when process
+should have been scheduled, but it was not. Internally
+.Nm
+works as following pseudocode:
+.Bd -literal -offset indent
+repeat:
+    store current monotonic time
+    sleep for (timeout / 3)
+    if (current monotonic time - stored monotonic time) > timeout:
+        display error
+.Ed
+.Pp
+.Nm
+arguments are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Display debug messages.
+.It Fl D
+Run on background (daemonize).
+.It Fl f
+Run on foreground (do not demonize - default).
+.It Fl h
+Show help.
+.It Fl p
+Do not set RR scheduler.
+.It Fl t Ar timeout
+Set timeout value in milliseconds (default 2000).
+.El
+.Sh EXIT STATUS
+.Ex -std
