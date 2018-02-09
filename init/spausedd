@@ -1,0 +1,95 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides: spausedd
+# Short-Description: Utility to detect and log scheduler pause.
+# Description: Utility to detect and log scheduler pause.
+### END INIT INFO
+
+# chkconfig: - 41 89
+# config: /etc/sysconfig/spausedd
+
+# Source function library.
+. /etc/init.d/functions
+
+prog="spausedd"
+
+#
+# Set default options.  Override the defaults and define
+# custom options in /etc/sysconfig/spausedd
+#
+SPAUSEDDOPTS="-D"
+LOCKFILE="/var/lock/subsys/$prog"
+
+[ -f "/etc/sysconfig/$prog" ] && . "/etc/sysconfig/$prog"
+
+start() {
+    echo -n $"Starting $prog: "
+    if status $prog > /dev/null;then
+        failure
+        echo
+
+        return $?
+    fi
+
+    if [ $UID -ne 0 ]; then
+        RETVAL=4
+        failure
+    else
+        daemon "/usr/bin/$prog" $SPAUSEDDOPTS
+        RETVAL=$?
+        [ $RETVAL -eq 0 ] && touch $LOCKFILE
+    fi
+
+    echo
+    return $RETVAL
+}
+
+stop() {
+    echo -n $"Shutting down $prog: "
+    if [ $UID -ne 0 ]; then
+        RETVAL=4
+        failure
+    else
+        killproc "/usr/bin/$prog"
+        RETVAL=$?
+        [ $RETVAL -eq 0 ] && rm -f $LOCKFILE
+    fi
+
+    echo
+    return $RETVAL
+}
+
+restart() {
+    stop
+    start
+}
+
+RETVAL=0
+
+# See how we were called.
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status $prog
+        ;;
+    restart|reload)
+        restart
+        ;;
+    condrestart)
+        if status $prog > /dev/null; then
+            stop
+            start
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|status|restart|reload}"
+        exit 2
+esac
+
+exit $?
