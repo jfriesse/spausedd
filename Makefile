@@ -5,7 +5,7 @@ PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
 MANDIR ?= $(PREFIX)/share/man
 INSTALL_PROGRAM ?= install
-VERSION = 20180209
+VERSION = 20180219
 
 $(PROGRAM_NAME): spausedd.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
