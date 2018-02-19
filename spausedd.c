@@ -276,7 +276,6 @@ nano_stealtime_get(void)
 		return (res_steal);
 	}
 
-
 	while (fgets(buf, sizeof(buf), f) != NULL) {
 		s_user = s_nice = s_system = s_idle = s_iowait = s_irq = s_softirq = s_steal = 0;
 		if (sscanf(buf, "cpu %"PRIu64" %"PRIu64" %"PRIu64" %"PRIu64" %"PRIu64" %"PRIu64
@@ -287,6 +286,10 @@ nano_stealtime_get(void)
 			 * Got valid line
 			 */
 			clock_tick = sysconf(_SC_CLK_TCK);
+			if (clock_tick == -1) {
+				log_printf(LOG_TRACE, "Can't get _SC_CLK_TCK, using 100");
+				clock_tick = 100;
+			}
 
 			factor = NO_NS_IN_SEC / clock_tick;
 			res_steal = s_steal * factor;
