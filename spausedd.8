@@ -15,7 +15,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd Feb 9, 2018
+.Dd Feb 19, 2018
 .Dt SPAUSEDD 8
 .Os
 .Sh NAME
@@ -29,7 +29,11 @@
 The
 .Nm
 utility is used for detecting and logging scheduler pause. This means, when process
-should have been scheduled, but it was not. Internally
+should have been scheduled, but it was not. It's also able to use steal
+time (time spent in other operating systems when running in a virtualized
+environment) so it is (to some extend) able to detect if problem is on the VM
+or host side.
+Internally
 .Nm
 works as following pseudocode:
 .Bd -literal -offset indent
@@ -44,7 +48,7 @@ repeat:
 arguments are as follows:
 .Bl -tag -width Ds
 .It Fl d
-Display debug messages.
+Display debug messages (specify twice to display also trace mssages).
 .It Fl D
 Run on background (daemonize).
 .It Fl f
@@ -54,7 +58,44 @@ Show help.
 .It Fl p
 Do not set RR scheduler.
 .It Fl t Ar timeout
-Set timeout value in milliseconds (default 2000).
+Set timeout value in milliseconds (default 200).
 .El
-.Sh EXIT STATUS
+.Sh EXAMPLES
+Gost machine is running one VM. VM is running an instance of
+.Nm . To generate CPU load
+.Xr yes 1 together with
+.Xr chrt 1 is used as following:
+.Pp
+.Dl chrt -r 99 yes >/dev/null &
+.Pp
+Number of needed instances depends on number of CPU/cores. When CPU usage is high enough,
+.Nm
+should start logging messages similar to:
+.Pp
+.Dl Not scheduled for 0.9347s (threshold is 0.2000s), steal time is 0.8600s (92.01%)
+.Dl Steal time is > 10%, this is usually because of overloaded host machine
+.Dl ...
+.Pp
+This means that
+.Nm
+didn't got the time to run for almost one second. Also because steal time is also almost one second,
+it means not only
+.Nm
+was not scheduled, but also VM wasn't.
+.Sh DIAGNOSTICS
 .Ex -std
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Jan Friesse Aq jfriesse@redhat.com .
+.Sh BUGS
+.Bl -dash
+.It
+OS is not updating steal time as often as monotonic clock. This means that steal
+time difference can be (and very often is) bigger than monotonic clock difference,
+so steal time percentage can be bigger than 100%. It's happening very often for
+highly overloaded host machine when
+.Nm
+is called with small timeout.
+.El

@@ -43,11 +43,15 @@
 
 #define PROGRAM_NAME		"spausedd"
 
-#define DEFAULT_TIMEOUT		2000
+#define DEFAULT_TIMEOUT		200
 
 #define NO_NS_IN_SEC		1000000000ULL
 #define NO_NS_IN_MSEC		1000000ULL
 #define NO_MSEC_IN_SEC		1000ULL
+
+#ifndef LOG_TRACE
+#define LOG_TRACE	(LOG_DEBUG + 1)
+#endif
 
 /*
  * Globals
@@ -71,7 +75,8 @@ log_vprintf(int priority, const char *format, va_list ap)
 	va_list ap_copy;
 	int final_priority;
 
-	if (priority != LOG_DEBUG || log_debug) {
+	if ((priority < LOG_DEBUG) || (priority == LOG_DEBUG && log_debug >= 1)
+	    || (priority == LOG_TRACE && log_debug >= 2)) {
 		if (log_to_stderr) {
 			fprintf(stderr, "%s: ", PROGRAM_NAME);
 			va_copy(ap_copy, ap);
@@ -252,6 +257,58 @@ nano_current_get(void)
 }
 
 /*
+ * Get steal time
+ */
+static uint64_t
+nano_stealtime_get(void)
+{
+	FILE *f;
+	char buf[4096];
+	uint64_t s_user, s_nice, s_system, s_idle, s_iowait, s_irq, s_softirq, s_steal;
+	uint64_t res_steal;
+	long int clock_tick;
+	uint64_t factor;
+
+	res_steal = 0;
+
+	f = fopen("/proc/stat", "rt");
+	if (f == NULL) {
+		return (res_steal);
+	}
+
+
+	while (fgets(buf, sizeof(buf), f) != NULL) {
+		s_user = s_nice = s_system = s_idle = s_iowait = s_irq = s_softirq = s_steal = 0;
+		if (sscanf(buf, "cpu %"PRIu64" %"PRIu64" %"PRIu64" %"PRIu64" %"PRIu64" %"PRIu64
+		    " %"PRIu64" %"PRIu64,
+		    &s_user, &s_nice, &s_system, &s_idle, &s_iowait, &s_irq, &s_softirq,
+		    &s_steal) > 4) {
+			/*
+			 * Got valid line
+			 */
+			clock_tick = sysconf(_SC_CLK_TCK);
+
+			factor = NO_NS_IN_SEC / clock_tick;
+			res_steal = s_steal * factor;
+
+			log_printf(LOG_TRACE, "nano_stealtime_get kernel stats: "
+			    "user = %"PRIu64", nice = %"PRIu64"s, system = %"PRIu64
+			    ", idle = %"PRIu64", iowait = %"PRIu64", irq = %"PRIu64
+			    ", softirq = %"PRIu64", steal = %"PRIu64", factor = %"PRIu64
+			    ", result steal = %"PRIu64,
+			    s_user, s_nice, s_system, s_idle, s_iowait, s_irq, s_softirq, s_steal,
+			    factor, res_steal);
+
+			break;
+		}
+	}
+
+	fclose(f);
+
+	return (res_steal);
+}
+
+/*
  * MAIN FUNCTIONALITY
  */
 static void
@@ -274,8 +331,12 @@ poll_run(uint64_t timeout)
 	uint64_t tv_diff;
 	uint64_t tv_max_allowed_diff;
 	uint64_t tv_start;
+	uint64_t steal_now;
+	uint64_t steal_prev;
+	uint64_t steal_diff;
 	int poll_res;
 	int poll_timeout;
+	double steal_perc;
 
 	tv_max_allowed_diff = timeout * NO_NS_IN_MSEC;
 	poll_timeout = timeout / 3;
@@ -285,6 +346,7 @@ poll_run(uint64_t timeout)
 
 	while (!stop_main_loop) {
 		tv_prev = tv_now = nano_current_get();
+		steal_prev = steal_now = nano_stealtime_get();
 
 		if (display_statistics) {
 			print_statistics(tv_start);
@@ -292,9 +354,10 @@ poll_run(uint64_t timeout)
 			display_statistics = 0;
 		}
 
-		log_printf(LOG_DEBUG, "now = %0.4fs, max_diff = %0.4fs, poll_timeout = %0.4fs",
+		log_printf(LOG_DEBUG, "now = %0.4fs, max_diff = %0.4fs, poll_timeout = %0.4fs, "
+		    "steal_time = %0.4fs",
 		    (double)tv_now / NO_NS_IN_SEC, (double)tv_max_allowed_diff / NO_NS_IN_SEC,
-		    (double)poll_timeout / NO_MSEC_IN_SEC);
+		    (double)poll_timeout / NO_MSEC_IN_SEC, (double)steal_now / NO_NS_IN_SEC);
 
 		if (poll_timeout < 0) {
 			poll_timeout = 0;
@@ -308,14 +371,27 @@ poll_run(uint64_t timeout)
 			}
 		}
 
+		steal_now = nano_stealtime_get();
+
 		tv_now = nano_current_get();
 		tv_diff = tv_now - tv_prev;
 
-		if (tv_diff > tv_max_allowed_diff) {
-			log_printf(LOG_ERR, "Not scheduled for %0.4fs (threshold is %0.4fs)",
-			    (double)tv_diff / NO_NS_IN_SEC,
-			    (double)tv_max_allowed_diff / NO_NS_IN_SEC);
+		steal_diff = steal_now - steal_prev;
+		steal_perc = ((double)steal_diff / tv_diff) * (double)100;
 
+
+		if (tv_diff > tv_max_allowed_diff) {
+			log_printf(LOG_ERR, "Not scheduled for %0.4fs (threshold is %0.4fs), "
+			    "steal time is %0.4fs (%0.2f%%)",
+			    (double)tv_diff / NO_NS_IN_SEC,
+			    (double)tv_max_allowed_diff / NO_NS_IN_SEC,
+			    (double)steal_diff / NO_NS_IN_SEC,
+			    steal_perc);
+
+			if (steal_perc > 10) {
+				log_printf(LOG_WARNING, "Steal time is > 10%, this is usually because "
+				    "of overloaded host machine");
+			}
 			times_not_scheduled++;
 		}
 	}
@@ -360,7 +436,7 @@ main(int argc, char **argv)
 			foreground = 0;
 			break;
 		case 'd':
-			log_debug = 1;
+			log_debug++;
 			break;
 		case 'f':
 			foreground = 1;
