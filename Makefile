@@ -7,6 +7,11 @@ MANDIR ?= $(PREFIX)/share/man
 INSTALL_PROGRAM ?= install
 VERSION = 20180219
 
+ifeq ($(or $(WITH_VMGUESTLIB), $(shell pkg-config --exists vmguestlib && echo "1" || echo "0")), 1)
+CFLAGS += $(shell pkg-config vmguestlib --cflags) -DHAVE_VMGUESTLIB
+LDFLAGS += $(shell pkg-config vmguestlib --libs)
+endif
+
 $(PROGRAM_NAME): spausedd.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
 
@@ -36,5 +41,5 @@ dist: $(PROGRAM_NAME)-$(VERSION).tar.gz
 rpm: $(PROGRAM_NAME)-$(VERSION).tar.gz
 	rpmbuild -ba --define "_sourcedir $(PWD)" $(PROGRAM_NAME).spec
 
-rpm-systemd: $(PROGRAM_NAME)-$(VERSION).tar.gz
-	rpmbuild -ba --define "_sourcedir $(PWD)" --with systemd $(PROGRAM_NAME).spec
+rpm-with-all: $(PROGRAM_NAME)-$(VERSION).tar.gz
+	rpmbuild -ba --define "_sourcedir $(PWD)" --with systemd --with vmguestlib $(PROGRAM_NAME).spec

@@ -41,16 +41,28 @@
 #include <time.h>
 #include <unistd.h>
 
-#define PROGRAM_NAME		"spausedd"
+#ifdef HAVE_VMGUESTLIB
+#include <vmGuestLib.h>
+#endif
 
-#define DEFAULT_TIMEOUT		200
+#define PROGRAM_NAME			"spausedd"
 
-#define NO_NS_IN_SEC		1000000000ULL
-#define NO_NS_IN_MSEC		1000000ULL
-#define NO_MSEC_IN_SEC		1000ULL
+#define DEFAULT_TIMEOUT			200
+
+/*
+ * Maximum allowed timeout is one hour
+ */
+#define MAX_TIMEOUT			(1000 * 60 * 60)
+
+#define DEFAULT_MAX_STEAL_PERCENT	10
+#define DEFAULT_MAX_STEAL_PERCENT_GL	100
+
+#define NO_NS_IN_SEC			1000000000ULL
+#define NO_NS_IN_MSEC			1000000ULL
+#define NO_MSEC_IN_SEC			1000ULL
 
 #ifndef LOG_TRACE
-#define LOG_TRACE	(LOG_DEBUG + 1)
+#define LOG_TRACE			(LOG_DEBUG + 1)
 #endif
 
 /*
@@ -62,9 +74,21 @@ static int log_to_stderr = 0;
 
 static uint64_t times_not_scheduled = 0;
 
+/*
+ * If current steal percent is larger than max_steal_percent warning is shown.
+ * Default is DEFAULT_MAX_STEAL_PERCENT (or DEFAULT_MAX_STEAL_PERCENT_GL if
+ * HAVE_VMGUESTLIB and VMGuestLib init success)
+ */
+static double max_steal_percent;
+
 static volatile sig_atomic_t stop_main_loop = 0;
 
 static volatile sig_atomic_t display_statistics = 0;
+
+#ifdef HAVE_VMGUESTLIB
+static int use_vmguestlib_stealtime = 0;
+static VMGuestLibHandle guestlib_handle;
+#endif
 
 /*
  * Logging functions
@@ -118,6 +142,32 @@ log_perror(int priority, const char *s)
 	stored_errno = errno;
 
 	log_printf(priority, "%s (%u): %s", stored_errno, strerror(stored_errno));
+}
+
+static int
+util_strtonum(const char *str, long long int min_val, long long int max_val, long long int *res)
+{
+	long long int tmp_ll;
+	char *ep;
+
+	if (min_val > max_val) {
+		return (-1);
+	}
+
+	errno = 0;
+
+	tmp_ll = strtoll(str, &ep, 10);
+	if (ep == str || *ep != '\0' || errno != 0) {
+		return (-1);
+	}
+
+	if (tmp_ll < min_val || tmp_ll > max_val) {
+		return (-1);
+	}
+
+	*res = tmp_ll;
+
+	return (0);
 }
 
 /*
@@ -257,10 +307,10 @@ nano_current_get(void)
 }
 
 /*
- * Get steal time
+ * Get steal time provided by kernel
  */
 static uint64_t
-nano_stealtime_get(void)
+nano_stealtime_kernel_get(void)
 {
 	FILE *f;
 	char buf[4096];
@@ -312,6 +362,119 @@ nano_stealtime_get(void)
 }
 
 /*
+ * Get steal time provided by vmguestlib
+ */
+#ifdef HAVE_VMGUESTLIB
+static uint64_t
+nano_stealtime_vmguestlib_get(void)
+{
+	VMGuestLibError gl_err;
+	uint64_t stolen_ms;
+	uint64_t res_steal;
+	uint64_t used_ms, elapsed_ms;
+	static uint64_t prev_stolen_ms, prev_used_ms, prev_elapsed_ms;
+
+	gl_err = VMGuestLib_UpdateInfo(guestlib_handle);
+	if (gl_err != VMGUESTLIB_ERROR_SUCCESS) {
+		log_printf(LOG_WARNING, "Can't update stolen time from guestlib: %s",
+		    VMGuestLib_GetErrorText(gl_err));
+
+		return (0);
+	}
+
+	gl_err = VMGuestLib_GetCpuStolenMs(guestlib_handle, &stolen_ms);
+	if (gl_err != VMGUESTLIB_ERROR_SUCCESS) {
+		log_printf(LOG_WARNING, "Can't get stolen time from guestlib: %s",
+		    VMGuestLib_GetErrorText(gl_err));
+
+		return (0);
+	}
+
+	/*
+	 * For debug purpose, returned errors ignored
+	 */
+	used_ms = elapsed_ms = 0;
+	(void)VMGuestLib_GetCpuUsedMs(guestlib_handle, &used_ms);
+	(void)VMGuestLib_GetElapsedMs(guestlib_handle, &elapsed_ms);
+
+	log_printf(LOG_TRACE, "nano_stealtime_vmguestlib_get stats: "
+	    "stolen = %"PRIu64" (%"PRIu64"), used = %"PRIu64" (%"PRIu64"), "
+	    "elapsed = %"PRIu64" (%"PRIu64")",
+	    stolen_ms, stolen_ms - prev_stolen_ms, used_ms, used_ms - prev_used_ms,
+	    elapsed_ms, elapsed_ms - prev_elapsed_ms);
+
+	prev_stolen_ms = stolen_ms;
+	prev_used_ms = used_ms;
+	prev_elapsed_ms = elapsed_ms;
+
+	res_steal = NO_NS_IN_MSEC * stolen_ms;
+
+	return (res_steal);
+}
+#endif
+
+/*
+ * Get steal time
+ */
+static uint64_t
+nano_stealtime_get(void)
+{
+	uint64_t res;
+
+#ifdef HAVE_VMGUESTLIB
+	if (use_vmguestlib_stealtime) {
+		res = nano_stealtime_vmguestlib_get();
+	} else {
+		res = nano_stealtime_kernel_get();
+	}
+#else
+	res = nano_stealtime_kernel_get();
+#endif
+
+	return (res);
+}
+
+
+/*
+ * VMGuestlib
+ */
+static void
+guestlib_init(void)
+{
+#ifdef HAVE_VMGUESTLIB
+	VMGuestLibError gl_err;
+
+	gl_err = VMGuestLib_OpenHandle(&guestlib_handle);
+	if (gl_err != VMGUESTLIB_ERROR_SUCCESS) {
+		log_printf(LOG_DEBUG, "Can't open guestlib handle: %s", VMGuestLib_GetErrorText(gl_err));
+		return ;
+	}
+
+	log_printf(LOG_INFO, "Using VMGuestLib");
+
+	use_vmguestlib_stealtime = 1;
+
+	max_steal_percent = DEFAULT_MAX_STEAL_PERCENT_GL;
+#endif
+}
+
+static void
+guestlib_fini(void)
+{
+#ifdef HAVE_VMGUESTLIB
+	VMGuestLibError gl_err;
+
+	if (use_vmguestlib_stealtime) {
+		gl_err = VMGuestLib_CloseHandle(guestlib_handle);
+
+		if (gl_err != VMGUESTLIB_ERROR_SUCCESS) {
+			log_printf(LOG_DEBUG, "Can't close guestlib handle: %s", VMGuestLib_GetErrorText(gl_err));
+		}
+	}
+#endif
+}
+
+/*
  * MAIN FUNCTIONALITY
  */
 static void
@@ -348,8 +511,11 @@ poll_run(uint64_t timeout)
 	log_printf(LOG_INFO, "Running main poll loop with maximum timeout %"PRIu64, timeout);
 
 	while (!stop_main_loop) {
-		tv_prev = tv_now = nano_current_get();
+		/*
+		 * Fetching stealtime can block so get it before monotonic time
+		 */
 		steal_prev = steal_now = nano_stealtime_get();
+		tv_prev = tv_now = nano_current_get();
 
 		if (display_statistics) {
 			print_statistics(tv_start);
@@ -374,11 +540,13 @@ poll_run(uint64_t timeout)
 			}
 		}
 
-		steal_now = nano_stealtime_get();
-
+		/*
+		 * Fetching stealtime can block so first get monotonic and then steal time
+		 */
 		tv_now = nano_current_get();
 		tv_diff = tv_now - tv_prev;
 
+		steal_now = nano_stealtime_get();
 		steal_diff = steal_now - steal_prev;
 		steal_perc = ((double)steal_diff / tv_diff) * (double)100;
 
@@ -391,9 +559,9 @@ poll_run(uint64_t timeout)
 			    (double)steal_diff / NO_NS_IN_SEC,
 			    steal_perc);
 
-			if (steal_perc > 10) {
-				log_printf(LOG_WARNING, "Steal time is > 10%, this is usually because "
-				    "of overloaded host machine");
+			if (steal_perc > max_steal_percent) {
+				log_printf(LOG_WARNING, "Steal time is > %0.1f%, this is usually because "
+				    "of overloaded host machine", max_steal_percent);
 			}
 			times_not_scheduled++;
 		}
@@ -426,12 +594,12 @@ main(int argc, char **argv)
 	int foreground;
 	long long int tmpll;
 	uint64_t timeout;
-	char *ep;
 	int set_prio;
 
 	foreground = 1;
 	timeout = DEFAULT_TIMEOUT;
 	set_prio = 1;
+	max_steal_percent = DEFAULT_MAX_STEAL_PERCENT;
 
 	while ((ch = getopt(argc, argv, "dDfhpt:")) != -1) {
 		switch (ch) {
@@ -445,8 +613,7 @@ main(int argc, char **argv)
 			foreground = 1;
 			break;
 		case 't':
-			tmpll = strtoll(optarg, &ep, 10);
-			if (tmpll <= 0 || errno != 0 || *ep != '\0') {
+			if (util_strtonum(optarg, 1, MAX_TIMEOUT, &tmpll) != 0) {
 				errx(1, "Timeout %s is invalid", optarg);
 			}
 
@@ -481,7 +648,11 @@ main(int argc, char **argv)
 
 	signal_handlers_register();
 
+	guestlib_init();
+
 	poll_run(timeout);
+
+	guestlib_fini();
 
 	if (!foreground) {
 		closelog();

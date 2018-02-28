@@ -1,4 +1,5 @@
 %bcond_with systemd
+%bcond_with vmguestlib
 
 Name: spausedd
 Summary: Utility to detect and log scheduler pause
@@ -16,6 +17,12 @@ Requires(post): /sbin/chkconfig
 Requires(preun): /sbin/chkconfig
 %endif
 
+%if %{with vmguestlib}
+BuildRequires: pkgconfig(vmguestlib)
+
+ExclusiveArch: x86_64
+%endif
+
 %description
 Utility to detect and log scheduler pause
 
@@ -23,7 +30,13 @@ Utility to detect and log scheduler pause
 %setup -q -n %{name}-%{version}
 
 %build
-make %{?_smp_mflags} CFLAGS="%{optflags}"
+make \
+%if %{with vmguestlib}
+    WITH_VMGUESTLIB=1 \
+%else
+    WITH_VMGUESTLIB=0 \
+%endif
+    %{?_smp_mflags} CFLAGS="%{optflags}"
 
 %install
 make DESTDIR="%{buildroot}" PREFIX="%{_prefix}" install
