@@ -3,7 +3,7 @@
 
 Name: spausedd
 Summary: Utility to detect and log scheduler pause
-Version: 20180219
+Version: 20180320
 Release: 1%{?dist}
 License: ISC
 URL: https://github.com/jfriesse/spausedd
@@ -85,6 +85,10 @@ fi
 %endif
 
 %changelog
+* Tue Mar 20 2018 Jan Friesse <jfriesse@redhat.com> - 20180320-1
+- Add support for VMGuestLib
+- Add more examples
+
 * Mon Feb 19 2018 Jan Friesse <jfriesse@redhat.com> - 20180219-1
 - Add support for steal time
 
