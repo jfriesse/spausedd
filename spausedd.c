@@ -94,15 +94,28 @@ static VMGuestLibHandle guestlib_handle;
 /*
  * Logging functions
  */
+static const char log_month_str[][4] = {
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+};
+
 static void
 log_vprintf(int priority, const char *format, va_list ap)
 {
 	va_list ap_copy;
 	int final_priority;
+	time_t current_time;
+	struct tm tm_res;
 
 	if ((priority < LOG_DEBUG) || (priority == LOG_DEBUG && log_debug >= 1)
 	    || (priority == LOG_TRACE && log_debug >= 2)) {
 		if (log_to_stderr) {
+			current_time = time(NULL);
+			localtime_r(&current_time, &tm_res);
+			fprintf(stderr, "%s %02d %02d:%02d:%02d ",
+				log_month_str[tm_res.tm_mon], tm_res.tm_mday, tm_res.tm_hour,
+				tm_res.tm_min, tm_res.tm_sec);
+
 			fprintf(stderr, "%s: ", PROGRAM_NAME);
 			va_copy(ap_copy, ap);
 			vfprintf(stderr, format, ap_copy);
