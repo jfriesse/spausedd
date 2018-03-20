@@ -15,7 +15,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd Feb 19, 2018
+.Dd Mar 20, 2018
 .Dt SPAUSEDD 8
 .Os
 .Sh NAME
@@ -24,6 +24,7 @@
 .Sh SYNOPSIS
 .Nm spausedd
 .Op Fl dDfhp
+.Op Fl m Ar steal_threshold
 .Op Fl t Ar timeout
 .Sh DESCRIPTION
 The
@@ -33,22 +34,30 @@ should have been scheduled, but it was not. It's also able to use steal
 time (time spent in other operating systems when running in a virtualized
 environment) so it is (to some extend) able to detect if problem is on the VM
 or host side.
+.Nm
+is able to read information about steal time ether from kernel or (if compiled in)
+also use VMGuestLib.
 Internally
 .Nm
 works as following pseudocode:
 .Bd -literal -offset indent
 repeat:
     store current monotonic time
+    store current steal time
     sleep for (timeout / 3)
-    if (current monotonic time - stored monotonic time) > timeout:
+    set time_diff to (current monotonic time - stored monotonic time)
+    if time_diff > timeout:
         display error
+        set steal_time_diff to (current steal time - stored steal time)
+        if (steal_time_diff / time_diff) * 100 > steal_threshold:
+            display steal time error
 .Ed
 .Pp
 .Nm
 arguments are as follows:
 .Bl -tag -width Ds
 .It Fl d
-Display debug messages (specify twice to display also trace mssages).
+Display debug messages (specify twice to display also trace messages).
 .It Fl D
 Run on background (daemonize).
 .It Fl f
@@ -57,6 +66,8 @@ Run on foreground (do not demonize - default).
 Show help.
 .It Fl p
 Do not set RR scheduler.
+.It Fl t Ar steal_threshold
+Set steal threshold percent. (default is 10 if kernel information is used and 100 if VMGuestLib is used).
 .It Fl t Ar timeout
 Set timeout value in milliseconds (default 200).
 .El
@@ -67,6 +78,11 @@ Host machine is running one VM. VM is running an instance of
 .Xr chrt 1 is used as following:
 .Pp
 .Dl chrt -r 99 yes >/dev/null &
+.Pp
+If chrt fails it may help to use
+.Xr cgexec 1 like:
+.Pp
+.Dl cgexec -g cpu:/ chrt -r 99 yes >/dev/null &
 .Pp
 Number of needed instances depends on number of CPU/cores. When CPU usage is high enough,
 .Nm

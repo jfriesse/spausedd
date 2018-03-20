@@ -54,8 +54,8 @@
  */
 #define MAX_TIMEOUT			(1000 * 60 * 60)
 
-#define DEFAULT_MAX_STEAL_PERCENT	10
-#define DEFAULT_MAX_STEAL_PERCENT_GL	100
+#define DEFAULT_MAX_STEAL_THRESHOLD	10
+#define DEFAULT_MAX_STEAL_THRESHOLD_GL	100
 
 #define NO_NS_IN_SEC			1000000000ULL
 #define NO_NS_IN_MSEC			1000000ULL
@@ -75,11 +75,12 @@ static int log_to_stderr = 0;
 static uint64_t times_not_scheduled = 0;
 
 /*
- * If current steal percent is larger than max_steal_percent warning is shown.
- * Default is DEFAULT_MAX_STEAL_PERCENT (or DEFAULT_MAX_STEAL_PERCENT_GL if
+ * If current steal percent is larger than max_steal_threshold warning is shown.
+ * Default is DEFAULT_MAX_STEAL_THRESHOLD (or DEFAULT_MAX_STEAL_THRESHOLD_GL if
  * HAVE_VMGUESTLIB and VMGuestLib init success)
  */
-static double max_steal_percent;
+static double max_steal_threshold = DEFAULT_MAX_STEAL_THRESHOLD;
+static int max_steal_threshold_user_set = 0;
 
 static volatile sig_atomic_t stop_main_loop = 0;
 
@@ -454,7 +455,9 @@ guestlib_init(void)
 
 	use_vmguestlib_stealtime = 1;
 
-	max_steal_percent = DEFAULT_MAX_STEAL_PERCENT_GL;
+	if (!max_steal_threshold_user_set) {
+		max_steal_threshold = DEFAULT_MAX_STEAL_THRESHOLD_GL;
+	}
 #endif
 }
 
@@ -508,7 +511,8 @@ poll_run(uint64_t timeout)
 	poll_timeout = timeout / 3;
 	tv_start = nano_current_get();
 
-	log_printf(LOG_INFO, "Running main poll loop with maximum timeout %"PRIu64, timeout);
+	log_printf(LOG_INFO, "Running main poll loop with maximum timeout %"PRIu64
+	    " and steal threshold %0.0f%%", timeout, max_steal_threshold);
 
 	while (!stop_main_loop) {
 		/*
@@ -559,9 +563,9 @@ poll_run(uint64_t timeout)
 			    (double)steal_diff / NO_NS_IN_SEC,
 			    steal_perc);
 
-			if (steal_perc > max_steal_percent) {
+			if (steal_perc > max_steal_threshold) {
 				log_printf(LOG_WARNING, "Steal time is > %0.1f%, this is usually because "
-				    "of overloaded host machine", max_steal_percent);
+				    "of overloaded host machine", max_steal_threshold);
 			}
 			times_not_scheduled++;
 		}
@@ -577,13 +581,14 @@ poll_run(uint64_t timeout)
 static void
 usage(void)
 {
-	printf("usage: %s [-dDfhp] [-t timeout]\n", PROGRAM_NAME);
+	printf("usage: %s [-dDfhp] [-m steal_th] [-t timeout]\n", PROGRAM_NAME);
 	printf("\n");
 	printf("  -d            Display debug messages\n");
 	printf("  -D            Run on background - daemonize\n");
 	printf("  -f            Run foreground - do not daemonize (default)\n");
 	printf("  -h            Show help\n");
 	printf("  -p            Do not set RR scheduler\n");
+	printf("  -m steal_th   Steal percent threshold\n");
 	printf("  -t timeout    Set timeout value (default: %u)\n", DEFAULT_TIMEOUT);
 }
 
@@ -599,9 +604,10 @@ main(int argc, char **argv)
 	foreground = 1;
 	timeout = DEFAULT_TIMEOUT;
 	set_prio = 1;
-	max_steal_percent = DEFAULT_MAX_STEAL_PERCENT;
+	max_steal_threshold = DEFAULT_MAX_STEAL_THRESHOLD;
+	max_steal_threshold_user_set = 0;
 
-	while ((ch = getopt(argc, argv, "dDfhpt:")) != -1) {
+	while ((ch = getopt(argc, argv, "dDfhpm:t:")) != -1) {
 		switch (ch) {
 		case 'D':
 			foreground = 0;
@@ -611,6 +617,13 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			foreground = 1;
+			break;
+		case 'm':
+			if (util_strtonum(optarg, 1, UINT32_MAX, &tmpll) != 0) {
+				errx(1, "Steal percent threshold %s is invalid", optarg);
+			}
+			max_steal_threshold_user_set = 1;
+			max_steal_threshold = tmpll;
 			break;
 		case 't':
 			if (util_strtonum(optarg, 1, MAX_TIMEOUT, &tmpll) != 0) {
