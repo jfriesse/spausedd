@@ -109,8 +109,8 @@ fi
 %changelog
 * Wed Mar 21 2018 Jan Friesse <jfriesse@redhat.com> - 20180321-1
 - Remove exlusivearch for VMGuestLib.
-- Add copr branch which automatically decides what build options should
-  be used (systemd/vmguestlib).
+- Add copr branch with enhanced spec file which tries to automatically
+  detect what build options should be used (systemd/vmguestlib).
 
 * Tue Mar 20 2018 Jan Friesse <jfriesse@redhat.com> - 20180320-1
 - Add support for VMGuestLib
