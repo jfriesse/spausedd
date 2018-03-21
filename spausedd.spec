@@ -5,7 +5,7 @@
 
 Name: spausedd
 Summary: Utility to detect and log scheduler pause
-Version: 20180320
+Version: 20180321
 Release: 1%{?dist}
 License: ISC
 URL: https://github.com/jfriesse/spausedd
@@ -109,7 +109,8 @@ fi
 %changelog
 * Wed Mar 21 2018 Jan Friesse <jfriesse@redhat.com> - 20180321-1
 - Remove exlusivearch for VMGuestLib.
-- Add copr branch which uses some automagic to decide what to build.
+- Add copr branch which automatically decides what build options should
+  be used (systemd/vmguestlib).
 
 * Tue Mar 20 2018 Jan Friesse <jfriesse@redhat.com> - 20180320-1
 - Add support for VMGuestLib
