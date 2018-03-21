@@ -15,7 +15,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd Mar 20, 2018
+.Dd Mar 21, 2018
 .Dt SPAUSEDD 8
 .Os
 .Sh NAME
@@ -72,6 +72,10 @@ Set steal threshold percent. (default is 10 if kernel information is used and
 .It Fl t Ar timeout
 Set timeout value in milliseconds (default 200).
 .El
+.Pp
+If
+.Nm
+receives a SIGUSR1 signal, the current statistics are show.
 .Sh EXAMPLES
 To generate CPU load
 .Xr yes 1
