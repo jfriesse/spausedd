@@ -3,11 +3,20 @@
 
 Name: spausedd
 Summary: Utility to detect and log scheduler pause
-Version: 20180321
+Version: 20190318
 Release: 1%{?dist}
 License: ISC
 URL: https://github.com/jfriesse/spausedd
 Source0: https://github.com/jfriesse/%{name}/releases/download/%{version}/%{name}-%{version}.tar.gz
+
+# VMGuestLib exists only for x86 architectures
+%if %{with vmguestlib}
+%ifarch %{ix86} x86_64
+%global use_vmguestlib 1
+%endif
+%endif
+
+BuildRequires: gcc
 
 %if %{with systemd}
 %{?systemd_requires}
@@ -17,7 +26,7 @@ Requires(post): /sbin/chkconfig
 Requires(preun): /sbin/chkconfig
 %endif
 
-%if %{with vmguestlib}
+%if %{defined use_vmguestlib}
 BuildRequires: pkgconfig(vmguestlib)
 %endif
 
@@ -29,7 +38,7 @@ Utility to detect and log scheduler pause
 
 %build
 make \
-%if %{with vmguestlib}
+%if %{defined use_vmguestlib}
     WITH_VMGUESTLIB=1 \
 %else
     WITH_VMGUESTLIB=0 \
@@ -83,6 +92,9 @@ fi
 %endif
 
 %changelog
+* Mon Mar 18 2019 Jan Friesse <jfriesse@redhat.com> - 20190321-1
+- Require VMGuestLib only on x86 and x86_64
+
 * Wed Mar 21 2018 Jan Friesse <jfriesse@redhat.com> - 20180321-1
 - Remove exlusivearch for VMGuestLib.
 - Add copr branch with enhanced spec file which tries to automatically
