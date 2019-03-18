@@ -5,7 +5,7 @@
 
 Name: spausedd
 Summary: Utility to detect and log scheduler pause
-Version: 20180321
+Version: 20190318
 Release: 1%{?dist}
 License: ISC
 URL: https://github.com/jfriesse/spausedd
@@ -13,27 +13,29 @@ Source0: https://github.com/jfriesse/%{name}/releases/download/%{version}/%{name
 
 # Systemd for RHEL >= 7 or Fedora >= 15
 %if 0%{?rhel} >= 7
-%global with_systemd 1
+%global use_systemd 1
 %endif
 
 %if 0%{?fedora} >= 15
-%global with_systemd 1
+%global use_systemd 1
 %endif
 
 # VMGuestLib for RHEL 7@x86-64 and Fedora >= 20@x86-64/i386
 %if 0%{?rhel} >= 7
 %ifarch x86_64
-%global with_vmguestlib 1
+%global use_vmguestlib 1
 %endif
 %endif
 
 %if 0%{?fedora} >= 20
-%ifarch x86_64 i386
-%global with_vmguestlib 1
+%ifarch x86_64 %{ix86}
+%global use_vmguestlib 1
 %endif
 %endif
 
-%if %{with systemd}
+BuildRequires: gcc
+
+%if %{defined use_systemd}
 %{?systemd_requires}
 BuildRequires: systemd
 %else
@@ -41,7 +43,7 @@ Requires(post): /sbin/chkconfig
 Requires(preun): /sbin/chkconfig
 %endif
 
-%if %{with vmguestlib}
+%if %{defined use_vmguestlib}
 BuildRequires: pkgconfig(vmguestlib)
 %endif
 
@@ -53,7 +55,7 @@ Utility to detect and log scheduler pause
 
 %build
 make \
-%if %{with vmguestlib}
+%if %{defined use_vmguestlib}
     WITH_VMGUESTLIB=1 \
 %else
     WITH_VMGUESTLIB=0 \
@@ -63,7 +65,7 @@ make \
 %install
 make DESTDIR="%{buildroot}" PREFIX="%{_prefix}" install
 
-%if %{with systemd}
+%if %{defined use_systemd}
 mkdir -p %{buildroot}/%{_unitdir}
 install -m 755 init/%{name}.service %{buildroot}/%{_unitdir}
 %else
@@ -76,14 +78,14 @@ install -m 755 init/%{name} %{buildroot}/%{_initrddir}
 %files
 %{_bindir}/%{name}
 %{_mandir}/man8/*
-%if %{with systemd}
+%if %{defined use_systemd}
 %{_unitdir}/spausedd.service
 %else
 %{_initrddir}/spausedd
 %endif
 
 %post
-%if %{with systemd} && 0%{?systemd_post:1}
+%if %{defined use_systemd} && 0%{?systemd_post:1}
 %systemd_post spausedd.service
 %else
 if [ $1 -eq 1 ]; then
@@ -92,7 +94,7 @@ fi
 %endif
 
 %preun
-%if %{with systemd} && 0%{?systemd_preun:1}
+%if %{defined use_systemd} && 0%{?systemd_preun:1}
 %systemd_preun spausedd.service
 %else
 if [ $1 -eq 0 ]; then
@@ -102,11 +104,14 @@ fi
 %endif
 
 %postun
-%if %{with systemd} && 0%{?systemd_postun:1}
+%if %{defined use_systemd} && 0%{?systemd_postun:1}
 %systemd_postun spausedd.service
 %endif
 
 %changelog
+* Mon Mar 18 2019 Jan Friesse <jfriesse@redhat.com> - 20190321-1
+- New release
+
 * Wed Mar 21 2018 Jan Friesse <jfriesse@redhat.com> - 20180321-1
 - Remove exlusivearch for VMGuestLib.
 - Add copr branch with enhanced spec file which tries to automatically
