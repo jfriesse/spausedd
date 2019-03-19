@@ -5,7 +5,7 @@ PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
 MANDIR ?= $(PREFIX)/share/man
 INSTALL_PROGRAM ?= install
-VERSION = 20190318
+VERSION = 20190319
 
 ifeq ($(or $(WITH_VMGUESTLIB), $(shell pkg-config --exists vmguestlib && echo "1" || echo "0")), 1)
 CFLAGS += $(shell pkg-config vmguestlib --cflags) -DHAVE_VMGUESTLIB
@@ -13,7 +13,7 @@ LDFLAGS += $(shell pkg-config vmguestlib --libs)
 endif
 
 $(PROGRAM_NAME): spausedd.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@
 
 all: $(PROGRAM_NAME)
 
