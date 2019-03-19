@@ -3,7 +3,7 @@
 
 Name: spausedd
 Summary: Utility to detect and log scheduler pause
-Version: 20190318
+Version: 20190319
 Release: 1%{?dist}
 License: ISC
 URL: https://github.com/jfriesse/spausedd
@@ -37,28 +37,30 @@ Utility to detect and log scheduler pause
 %setup -q -n %{name}-%{version}
 
 %build
+%set_build_flags
 make \
 %if %{defined use_vmguestlib}
     WITH_VMGUESTLIB=1 \
 %else
     WITH_VMGUESTLIB=0 \
 %endif
-    %{?_smp_mflags} CFLAGS="%{optflags}"
+    %{?_smp_mflags}
 
 %install
 make DESTDIR="%{buildroot}" PREFIX="%{_prefix}" install
 
 %if %{with systemd}
 mkdir -p %{buildroot}/%{_unitdir}
-install -m 755 init/%{name}.service %{buildroot}/%{_unitdir}
+install -m 755 -p init/%{name}.service %{buildroot}/%{_unitdir}
 %else
 mkdir -p %{buildroot}/%{_initrddir}
-install -m 755 init/%{name} %{buildroot}/%{_initrddir}
+install -m 755 -p init/%{name} %{buildroot}/%{_initrddir}
 %endif
 
 %clean
 
 %files
+%doc AUTHORS COPYING
 %{_bindir}/%{name}
 %{_mandir}/man8/*
 %if %{with systemd}
@@ -92,7 +94,13 @@ fi
 %endif
 
 %changelog
-* Mon Mar 18 2019 Jan Friesse <jfriesse@redhat.com> - 20190321-1
+* Tue Mar 19 2019 Jan Friesse <jfriesse@redhat.com> - 20190319-1
+- Add AUTHORS and COPYING
+- Fix version number in specfile
+- Use install -p to preserve timestamps
+- Use set_build_flags macro
+
+* Mon Mar 18 2019 Jan Friesse <jfriesse@redhat.com> - 20190318-1
 - Require VMGuestLib only on x86 and x86_64
 
 * Wed Mar 21 2018 Jan Friesse <jfriesse@redhat.com> - 20180321-1
