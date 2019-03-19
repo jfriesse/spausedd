@@ -19,9 +19,9 @@ all: $(PROGRAM_NAME)
 
 install: $(PROGRAM_NAME)
 	test -z "$(DESTDIR)/$(BINDIR)" || mkdir -p "$(DESTDIR)/$(BINDIR)"
-	$(INSTALL_PROGRAM) -c $< $(DESTDIR)/$(BINDIR)
+	$(INSTALL_PROGRAM) -p -c $< $(DESTDIR)/$(BINDIR)
 	test -z "$(DESTDIR)/$(MANDIR)/man8" || mkdir -p "$(DESTDIR)/$(MANDIR)/man8"
-	$(INSTALL_PROGRAM) -c -m 0644 $<.8 $(DESTDIR)/$(MANDIR)/man8
+	$(INSTALL_PROGRAM) -p -c -m 0644 $<.8 $(DESTDIR)/$(MANDIR)/man8
 
 uninstall:
 	rm -f $(DESTDIR)/$(BINDIR)/$(PROGRAM_NAME)
@@ -29,7 +29,7 @@ uninstall:
 
 $(PROGRAM_NAME)-$(VERSION).tar.gz:
 	mkdir -p $(PROGRAM_NAME)-$(VERSION)
-	cp -r README.md Makefile *.[ch] $(PROGRAM_NAME).8 $(PROGRAM_NAME).spec init $(PROGRAM_NAME)-$(VERSION)/
+	cp -r AUTHORS COPYING README.md Makefile *.[ch] $(PROGRAM_NAME).8 $(PROGRAM_NAME).spec init $(PROGRAM_NAME)-$(VERSION)/
 	tar -czf $(PROGRAM_NAME)-$(VERSION).tar.gz $(PROGRAM_NAME)-$(VERSION)
 	rm -rf $(PROGRAM_NAME)-$(VERSION)
 
