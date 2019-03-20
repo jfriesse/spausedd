@@ -3,7 +3,7 @@
 
 Name: spausedd
 Summary: Utility to detect and log scheduler pause
-Version: 20190319
+Version: 20190320
 Release: 1%{?dist}
 License: ISC
 URL: https://github.com/jfriesse/spausedd
@@ -60,7 +60,8 @@ install -m 755 -p init/%{name} %{buildroot}/%{_initrddir}
 %clean
 
 %files
-%doc AUTHORS COPYING
+%doc AUTHORS
+%license COPYING
 %{_bindir}/%{name}
 %{_mandir}/man8/*
 %if %{with systemd}
@@ -94,6 +95,9 @@ fi
 %endif
 
 %changelog
+* Wed Mar 20 2019 Jan Friesse <jfriesse@redhat.com> - 20190320-1
+- Use license macro in spec file
+
 * Tue Mar 19 2019 Jan Friesse <jfriesse@redhat.com> - 20190319-1
 - Add AUTHORS and COPYING
 - Fix version number in specfile
