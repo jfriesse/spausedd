@@ -5,8 +5,8 @@
 
 Name: spausedd
 Summary: Utility to detect and log scheduler pause
-Version: 20190319
-Release: 1%{?dist}
+Version: 20190320
+Release: 2%{?dist}
 License: ISC
 URL: https://github.com/jfriesse/spausedd
 Source0: https://github.com/jfriesse/%{name}/releases/download/%{version}/%{name}-%{version}.tar.gz
@@ -54,20 +54,21 @@ Utility to detect and log scheduler pause
 %setup -q -n %{name}-%{version}
 
 %build
+CFLAGS="${CFLAGS:-%{optflags}}" ; export CFLAGS
 make \
 %if %{defined use_vmguestlib}
     WITH_VMGUESTLIB=1 \
 %else
     WITH_VMGUESTLIB=0 \
 %endif
-    %{?_smp_mflags} CFLAGS="%{optflags}"
+    %{?_smp_mflags}
 
 %install
 make DESTDIR="%{buildroot}" PREFIX="%{_prefix}" install
 
 %if %{defined use_systemd}
 mkdir -p %{buildroot}/%{_unitdir}
-install -m 755 -p init/%{name}.service %{buildroot}/%{_unitdir}
+install -m 644 -p init/%{name}.service %{buildroot}/%{_unitdir}
 %else
 mkdir -p %{buildroot}/%{_initrddir}
 install -m 755 -p init/%{name} %{buildroot}/%{_initrddir}
@@ -76,6 +77,7 @@ install -m 755 -p init/%{name} %{buildroot}/%{_initrddir}
 %clean
 
 %files
+%doc AUTHORS COPYING
 %{_bindir}/%{name}
 %{_mandir}/man8/*
 %if %{defined use_systemd}
@@ -109,6 +111,13 @@ fi
 %endif
 
 %changelog
+* Tue Aug 06 2019 Jan Friesse <jfriesse@redhat.com> - 20190320-2
+- Do not set exec permission for service file
+- Fix CFLAGS definition
+
+* Wed Mar 20 2019 Jan Friesse <jfriesse@redhat.com> - 20190320-1
+- Use license macro in spec file
+
 * Tue Mar 19 2019 Jan Friesse <jfriesse@redhat.com> - 20190319-1
 - Add AUTHORS and COPYING
 - Fix version number in specfile
