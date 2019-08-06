@@ -4,7 +4,7 @@
 Name: spausedd
 Summary: Utility to detect and log scheduler pause
 Version: 20190320
-Release: 1%{?dist}
+Release: 2%{?dist}
 License: ISC
 URL: https://github.com/jfriesse/spausedd
 Source0: https://github.com/jfriesse/%{name}/releases/download/%{version}/%{name}-%{version}.tar.gz
@@ -51,7 +51,7 @@ make DESTDIR="%{buildroot}" PREFIX="%{_prefix}" install
 
 %if %{with systemd}
 mkdir -p %{buildroot}/%{_unitdir}
-install -m 755 -p init/%{name}.service %{buildroot}/%{_unitdir}
+install -m 644 -p init/%{name}.service %{buildroot}/%{_unitdir}
 %else
 mkdir -p %{buildroot}/%{_initrddir}
 install -m 755 -p init/%{name} %{buildroot}/%{_initrddir}
@@ -95,6 +95,9 @@ fi
 %endif
 
 %changelog
+* Tue Aug 06 2019 Jan Friesse <jfriesse@redhat.com> - 20190320-2
+- Do not set exec permission for service file
+
 * Wed Mar 20 2019 Jan Friesse <jfriesse@redhat.com> - 20190320-1
 - Use license macro in spec file
 
