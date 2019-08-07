@@ -3,8 +3,8 @@
 
 Name: spausedd
 Summary: Utility to detect and log scheduler pause
-Version: 20190320
-Release: 2%{?dist}
+Version: 20190807
+Release: 1%{?dist}
 License: ISC
 URL: https://github.com/jfriesse/spausedd
 Source0: https://github.com/jfriesse/%{name}/releases/download/%{version}/%{name}-%{version}.tar.gz
@@ -95,6 +95,9 @@ fi
 %endif
 
 %changelog
+* Wed Aug 07 2019 Jan Friesse <jfriesse@redhat.com> - 20190807-1
+- Enhance makefile
+
 * Tue Aug 06 2019 Jan Friesse <jfriesse@redhat.com> - 20190320-2
 - Do not set exec permission for service file
 
