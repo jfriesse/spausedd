@@ -1,5 +1,6 @@
-CFLAGS += -Wall -Wshadow -Wp,-D_FORTIFY_SOURCE=2 -g -O
-LDFLAGS += -lrt
+CFLAGS ?= -Wp,-D_FORTIFY_SOURCE=2 -g -O2
+CFLAGS_ADD = -Wall -Wshadow
+LDFLAGS_ADD = -lrt
 PROGRAM_NAME = spausedd
 PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
@@ -8,12 +9,12 @@ INSTALL_PROGRAM ?= install
 VERSION = 20190320
 
 ifeq ($(or $(WITH_VMGUESTLIB), $(shell pkg-config --exists vmguestlib && echo "1" || echo "0")), 1)
-CFLAGS += $(shell pkg-config vmguestlib --cflags) -DHAVE_VMGUESTLIB
-LDFLAGS += $(shell pkg-config vmguestlib --libs)
+VMGUESTLIB_CFLAGS += $(shell pkg-config vmguestlib --cflags) -DHAVE_VMGUESTLIB
+VMGUESTLIB_LDFLAGS += $(shell pkg-config vmguestlib --libs)
 endif
 
 $(PROGRAM_NAME): spausedd.c
-	$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@
+	$(CC) $(CFLAGS_ADD) $(VMGUESTLIB_CFLAGS) $(CFLAGS) $< $(LDFLAGS_ADD) $(VMGUESTLIB_LDFLAGS) $(LDFLAGS) -o $@
 
 all: $(PROGRAM_NAME)
 
