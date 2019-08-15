@@ -10,9 +10,16 @@ information about steal time ether from kernel or (if compiled in) also
 use VMGuestLib.
 
 ## Installation
+### Fedora
+Fedora contain spausedd package. Use `dnf` for installation.
+```
+# dnf install omping
+```
+
 ### RPM
 [Copr](https://copr.fedorainfracloud.org/coprs/honzaf/spausedd/) service is
-used for automatically create RPM packages right after new version is released.
+used for automatically create RPM packages right after new version is released
+for RHEL 6 and RHEL 7 (x86_64 version contains support for VMGuestLib).
 Usage is very simple:
 ```
 # dnf copr enable honzaf/spausedd
