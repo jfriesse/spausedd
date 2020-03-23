@@ -5,7 +5,7 @@
 
 Name: spausedd
 Summary: Utility to detect and log scheduler pause
-Version: 20190807
+Version: 20200323
 Release: 1%{?dist}
 License: ISC
 URL: https://github.com/jfriesse/spausedd
@@ -111,6 +111,10 @@ fi
 %endif
 
 %changelog
+* Mon Mar 23 2020 Jan Friesse <jfriesse@redhat.com> - 20200323-1
+- Fix man page
+- New release
+
 * Wed Aug 07 2019 Jan Friesse <jfriesse@redhat.com> - 20190807-1
 - Enhance makefile
 - New release
