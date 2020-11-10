@@ -92,6 +92,15 @@ static VMGuestLibHandle guestlib_handle;
 #endif
 
 /*
+ * Definitions (for attributes)
+ */
+static void	log_printf(int priority, const char *format, ...)
+    __attribute__((__format__(__printf__, 2, 3)));
+
+static void	log_vprintf(int priority, const char *format, va_list ap)
+    __attribute__((__format__(__printf__, 2, 0)));
+
+/*
  * Logging functions
  */
 static const char log_month_str[][4] = {
@@ -155,7 +164,7 @@ log_perror(int priority, const char *s)
 
 	stored_errno = errno;
 
-	log_printf(priority, "%s (%u): %s", stored_errno, strerror(stored_errno));
+	log_printf(priority, "%s (%u): %s", s, stored_errno, strerror(stored_errno));
 }
 
 static int
@@ -577,7 +586,7 @@ poll_run(uint64_t timeout)
 			    steal_perc);
 
 			if (steal_perc > max_steal_threshold) {
-				log_printf(LOG_WARNING, "Steal time is > %0.1f%, this is usually because "
+				log_printf(LOG_WARNING, "Steal time is > %0.1f%%, this is usually because "
 				    "of overloaded host machine", max_steal_threshold);
 			}
 			times_not_scheduled++;
