@@ -15,7 +15,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd Mar 21, 2018
+.Dd Nov 11, 2020
 .Dt SPAUSEDD 8
 .Os
 .Sh NAME
@@ -66,6 +66,8 @@ Run on foreground (do not demonize - default).
 Show help.
 .It Fl p
 Do not set RR scheduler.
+.It Fl P
+Do not move process to root cgroup.
 .It Fl m Ar steal_threshold
 Set steal threshold percent. (default is 10 if kernel information is used and
 100 if VMGuestLib is used).

@@ -273,6 +273,43 @@ utils_set_rr_scheduler(void)
 #endif
 }
 
+static void
+utils_move_to_root_cgroup(void)
+{
+	FILE *f;
+
+	/*
+	 * /sys/fs/cgroup is hardcoded, because most of Linux distributions are now
+	 * using systemd and systemd uses hardcoded path of cgroup mount point.
+	 *
+	 * This feature is expected to be removed as soon as systemd gets support
+	 * for managing RT configuration.
+	 */
+	f = fopen("/sys/fs/cgroup/cpu/cpu.rt_runtime_us", "rt");
+	if (f == NULL) {
+		log_printf(LOG_DEBUG, "cpu.rt_runtime_us doesn't exists -> "
+		    "system without cgroup or with disabled CONFIG_RT_GROUP_SCHED");
+		return ;
+	}
+	(void)fclose(f);
+
+	f = fopen("/sys/fs/cgroup/cpu/tasks", "w");
+	if (f == NULL) {
+		log_printf(LOG_WARNING, "Can't open cgroups tasks file for writing");
+		return ;
+	}
+
+	if (fprintf(f, "%jd\n", (intmax_t)getpid()) <= 0) {
+		log_printf(LOG_WARNING, "Can't write spausedd pid into cgroups tasks file");
+		return ;
+	}
+
+	if (fclose(f) != 0) {
+		log_printf(LOG_WARNING, "Can't close cgroups tasks file");
+		return ;
+	}
+}
+
 /*
  * Signal handlers
  */
@@ -603,13 +640,14 @@ poll_run(uint64_t timeout)
 static void
 usage(void)
 {
-	printf("usage: %s [-dDfhp] [-m steal_th] [-t timeout]\n", PROGRAM_NAME);
+	printf("usage: %s [-dDfhpP] [-m steal_th] [-t timeout]\n", PROGRAM_NAME);
 	printf("\n");
 	printf("  -d            Display debug messages\n");
 	printf("  -D            Run on background - daemonize\n");
 	printf("  -f            Run foreground - do not daemonize (default)\n");
 	printf("  -h            Show help\n");
 	printf("  -p            Do not set RR scheduler\n");
+	printf("  -P            Do not move process to root cgroup\n");
 	printf("  -m steal_th   Steal percent threshold\n");
 	printf("  -t timeout    Set timeout value (default: %u)\n", DEFAULT_TIMEOUT);
 }
@@ -622,14 +660,16 @@ main(int argc, char **argv)
 	long long int tmpll;
 	uint64_t timeout;
 	int set_prio;
+	int move_to_root_cgroup;
 
 	foreground = 1;
 	timeout = DEFAULT_TIMEOUT;
 	set_prio = 1;
+	move_to_root_cgroup = 1;
 	max_steal_threshold = DEFAULT_MAX_STEAL_THRESHOLD;
 	max_steal_threshold_user_set = 0;
 
-	while ((ch = getopt(argc, argv, "dDfhpm:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "dDfhpPm:t:")) != -1) {
 		switch (ch) {
 		case 'D':
 			foreground = 0;
@@ -659,6 +699,9 @@ main(int argc, char **argv)
 			usage();
 			exit(1);
 			break;
+		case 'P':
+			move_to_root_cgroup = 0;
+			break;
 		case 'p':
 			set_prio = 0;
 			break;
@@ -676,6 +719,10 @@ main(int argc, char **argv)
 	}
 
 	utils_mlockall();
+
+	if (move_to_root_cgroup) {
+		utils_move_to_root_cgroup();
+	}
 
 	if (set_prio) {
 		utils_set_rr_scheduler();
