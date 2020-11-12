@@ -301,7 +301,6 @@ utils_move_to_root_cgroup(void)
 
 	if (fprintf(f, "%jd\n", (intmax_t)getpid()) <= 0) {
 		log_printf(LOG_WARNING, "Can't write spausedd pid into cgroups tasks file");
-		return ;
 	}
 
 	if (fclose(f) != 0) {
