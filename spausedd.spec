@@ -3,7 +3,7 @@
 
 Name: spausedd
 Summary: Utility to detect and log scheduler pause
-Version: 20201110
+Version: 20201112
 Release: 1%{?dist}
 License: ISC
 URL: https://github.com/jfriesse/spausedd
@@ -95,6 +95,9 @@ fi
 %endif
 
 %changelog
+* Thu Nov 12 2020 Jan Friesse <jfriesse@redhat.com> - 20201112-1
+- Add ability to move process into root cgroup
+
 * Tue Nov 10 2020 Jan Friesse <jfriesse@redhat.com> - 20201110-1
 - Fix log_perror
 
