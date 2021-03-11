@@ -205,7 +205,12 @@ utils_mlockall(void)
 	rlimit.rlim_cur = RLIM_INFINITY;
 	rlimit.rlim_max = RLIM_INFINITY;
 
-	setrlimit(RLIMIT_MEMLOCK, &rlimit);
+	res = setrlimit(RLIMIT_MEMLOCK, &rlimit);
+	if (res == -1) {
+		log_printf(LOG_WARNING, "Could not increase RLIMIT_MEMLOCK, not locking memory");
+
+		return;
+	}
 
 	res = mlockall(MCL_CURRENT | MCL_FUTURE);
 	if (res == -1) {
