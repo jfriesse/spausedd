@@ -25,6 +25,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -282,6 +283,7 @@ static void
 utils_move_to_root_cgroup(void)
 {
 	FILE *f;
+	int cgroup_ver = 0;
 
 	/*
 	 * /sys/fs/cgroup is hardcoded, because most of Linux distributions are now
@@ -292,13 +294,35 @@ utils_move_to_root_cgroup(void)
 	 */
 	f = fopen("/sys/fs/cgroup/cpu/cpu.rt_runtime_us", "rt");
 	if (f == NULL) {
-		log_printf(LOG_DEBUG, "cpu.rt_runtime_us doesn't exists -> "
-		    "system without cgroup or with disabled CONFIG_RT_GROUP_SCHED");
-		return ;
+		/*
+		 * Try cgroup v2
+		 */
+		f = fopen("/sys/fs/cgroup/cgroup.procs", "rt");
+		if (f == NULL) {
+			log_printf(LOG_DEBUG, "cpu.rt_runtime_us or cgroup.procs doesn't exists -> "
+			    "system without cgroup or with disabled CONFIG_RT_GROUP_SCHED");
+
+			return ;
+		} else {
+			cgroup_ver = 2;
+		}
+	} else {
+		cgroup_ver = 1;
 	}
 	(void)fclose(f);
 
-	f = fopen("/sys/fs/cgroup/cpu/tasks", "w");
+	switch (cgroup_ver) {
+	case 1:
+		f = fopen("/sys/fs/cgroup/cpu/tasks", "w");
+		break;
+	case 2:
+		f = fopen("/sys/fs/cgroup/cgroup.procs", "w");
+		break;
+	default:
+		assert(0);
+		break;
+	}
+
 	if (f == NULL) {
 		log_printf(LOG_WARNING, "Can't open cgroups tasks file for writing");
 		return ;
