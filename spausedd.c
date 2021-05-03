@@ -311,15 +311,14 @@ utils_move_to_root_cgroup(void)
 	}
 	(void)fclose(f);
 
+	assert(cgroup_ver == 1 || cgroup_ver == 2);
+
 	switch (cgroup_ver) {
 	case 1:
 		f = fopen("/sys/fs/cgroup/cpu/tasks", "w");
 		break;
 	case 2:
 		f = fopen("/sys/fs/cgroup/cgroup.procs", "w");
-		break;
-	default:
-		assert(0);
 		break;
 	}
 
