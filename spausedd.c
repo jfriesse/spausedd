@@ -283,7 +283,7 @@ static void
 utils_move_to_root_cgroup(void)
 {
 	FILE *f;
-	int cgroup_ver = 0;
+	const char *cgroup_task_fname = NULL;
 
 	/*
 	 * /sys/fs/cgroup is hardcoded, because most of Linux distributions are now
@@ -304,24 +304,14 @@ utils_move_to_root_cgroup(void)
 
 			return ;
 		} else {
-			cgroup_ver = 2;
+			cgroup_task_fname = "/sys/fs/cgroup/cgroup.procs";
 		}
 	} else {
-		cgroup_ver = 1;
+		cgroup_task_fname = "/sys/fs/cgroup/cpu/tasks";
 	}
 	(void)fclose(f);
 
-	assert(cgroup_ver == 1 || cgroup_ver == 2);
-
-	switch (cgroup_ver) {
-	case 1:
-		f = fopen("/sys/fs/cgroup/cpu/tasks", "w");
-		break;
-	case 2:
-		f = fopen("/sys/fs/cgroup/cgroup.procs", "w");
-		break;
-	}
-
+	f = fopen(cgroup_task_fname, "w");
 	if (f == NULL) {
 		log_printf(LOG_WARNING, "Can't open cgroups tasks file for writing");
 		return ;
