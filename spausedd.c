@@ -299,7 +299,7 @@ utils_move_to_root_cgroup(void)
 		 */
 		f = fopen("/sys/fs/cgroup/cgroup.procs", "rt");
 		if (f == NULL) {
-			log_printf(LOG_DEBUG, "cpu.rt_runtime_us or cgroup.procs doesn't exists -> "
+			log_printf(LOG_DEBUG, "cpu.rt_runtime_us or cgroup.procs doesn't exist -> "
 			    "system without cgroup or with disabled CONFIG_RT_GROUP_SCHED");
 
 			return ;
