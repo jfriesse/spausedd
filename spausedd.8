@@ -15,7 +15,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd Nov 11, 2020
+.Dd May 20, 2020
 .Dt SPAUSEDD 8
 .Os
 .Sh NAME
@@ -68,6 +68,29 @@ Show help.
 Do not set RR scheduler.
 .It Fl P
 Do not move process to root cgroup.
+It's worth noting that currently (May 3 2021) cgroup v2 doesn’t yet
+support control of realtime processes and the cpu controller can only be
+enabled when all RT processes are in the root cgroup. So when this option
+is used together with systemd, it may be impossible to make systemd options
+like CPUQuota working correctly until
+.Nm
+is stopped.
+Also when this option is used together with cgroup v2 and systemd
+it makes impossible (most of the time) for journald to add systemd specific
+metadata (most importantly _SYSTEMD_UNIT) properly, because
+.Nm
+is moved out of cgroup created by systemd. This means
+it is not possible to filter
+.Nm
+logged messages based on these metadata
+(for example using -u or _SYSTEMD_UNIT=UNIT pattern) and also running
+systemctl status doesn't display (all)
+.Nm
+log messages.
+Problem is even worse because journald caches pid for some time
+(approx. 5 sec) so initial
+.Nm
+messages have correct metadata.
 .It Fl m Ar steal_threshold
 Set steal threshold percent. (default is 10 if kernel information is used and
 100 if VMGuestLib is used).
