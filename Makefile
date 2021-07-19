@@ -6,7 +6,7 @@ PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
 MANDIR ?= $(PREFIX)/share/man
 INSTALL_PROGRAM ?= install
-VERSION = 20210520
+VERSION = 20210719
 
 ifeq ($(or $(WITH_VMGUESTLIB), $(shell pkg-config --exists vmguestlib && echo "1" || echo "0")), 1)
 VMGUESTLIB_CFLAGS += $(shell pkg-config vmguestlib --cflags) -DHAVE_VMGUESTLIB
