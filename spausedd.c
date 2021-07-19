@@ -66,6 +66,12 @@
 #define LOG_TRACE			(LOG_DEBUG + 1)
 #endif
 
+enum move_to_root_cgroup_mode {
+	MOVE_TO_ROOT_CGROUP_MODE_OFF = 0,
+	MOVE_TO_ROOT_CGROUP_MODE_ON = 1,
+	MOVE_TO_ROOT_CGROUP_MODE_AUTO = 2,
+};
+
 /*
  * Globals
  */
@@ -254,8 +260,8 @@ utils_tty_detach(void)
 	close(devnull);
 }
 
-static void
-utils_set_rr_scheduler(void)
+static int
+utils_set_rr_scheduler(int silent)
 {
 #ifdef _POSIX_PRIORITY_SCHEDULING
 	int max_prio;
@@ -264,19 +270,27 @@ utils_set_rr_scheduler(void)
 
 	max_prio = sched_get_priority_max(SCHED_RR);
 	if (max_prio == -1) {
-		log_perror(LOG_WARNING, "Can't get maximum SCHED_RR priority");
-		return ;
+		if (!silent) {
+			log_perror(LOG_WARNING, "Can't get maximum SCHED_RR priority");
+		}
+
+		return (-1);
 	}
 
 	param.sched_priority = max_prio;
 	res = sched_setscheduler(0, SCHED_RR, &param);
 	if (res == -1) {
-		log_perror(LOG_WARNING, "Can't set SCHED_RR");
-		return ;
+		if (!silent) {
+			log_perror(LOG_WARNING, "Can't set SCHED_RR");
+		}
+
+		return (-1);
 	}
 #else
 	log_printf(LOG_WARNING, "Platform without sched_get_priority_min");
 #endif
+
+	return (0);
 }
 
 static void
@@ -304,9 +318,13 @@ utils_move_to_root_cgroup(void)
 
 			return ;
 		} else {
+			log_printf(LOG_DEBUG, "Moving main pid to cgroup v2 root cgroup");
+
 			cgroup_task_fname = "/sys/fs/cgroup/cgroup.procs";
 		}
 	} else {
+		log_printf(LOG_DEBUG, "Moving main pid to cgroup v1 root cgroup");
+
 		cgroup_task_fname = "/sys/fs/cgroup/cpu/tasks";
 	}
 	(void)fclose(f);
@@ -657,15 +675,15 @@ poll_run(uint64_t timeout)
 static void
 usage(void)
 {
-	printf("usage: %s [-dDfhpP] [-m steal_th] [-t timeout]\n", PROGRAM_NAME);
+	printf("usage: %s [-dDfhp] [-m steal_th] [-P mode] [-t timeout]\n", PROGRAM_NAME);
 	printf("\n");
 	printf("  -d            Display debug messages\n");
 	printf("  -D            Run on background - daemonize\n");
 	printf("  -f            Run foreground - do not daemonize (default)\n");
 	printf("  -h            Show help\n");
 	printf("  -p            Do not set RR scheduler\n");
-	printf("  -P            Do not move process to root cgroup\n");
 	printf("  -m steal_th   Steal percent threshold\n");
+	printf("  -P mode       Move process to root cgroup only when needed (auto), always (on) or never (off)\n");
 	printf("  -t timeout    Set timeout value (default: %u)\n", DEFAULT_TIMEOUT);
 }
 
@@ -677,16 +695,17 @@ main(int argc, char **argv)
 	long long int tmpll;
 	uint64_t timeout;
 	int set_prio;
-	int move_to_root_cgroup;
+	enum move_to_root_cgroup_mode move_to_root_cgroup;
+	int silent;
 
 	foreground = 1;
 	timeout = DEFAULT_TIMEOUT;
 	set_prio = 1;
-	move_to_root_cgroup = 1;
+	move_to_root_cgroup = MOVE_TO_ROOT_CGROUP_MODE_AUTO;
 	max_steal_threshold = DEFAULT_MAX_STEAL_THRESHOLD;
 	max_steal_threshold_user_set = 0;
 
-	while ((ch = getopt(argc, argv, "dDfhpPm:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "dDfhpm:P:t:")) != -1) {
 		switch (ch) {
 		case 'D':
 			foreground = 0;
@@ -717,7 +736,15 @@ main(int argc, char **argv)
 			exit(1);
 			break;
 		case 'P':
-			move_to_root_cgroup = 0;
+			if (strcasecmp(optarg, "on") == 0) {
+				move_to_root_cgroup = MOVE_TO_ROOT_CGROUP_MODE_ON;
+			} else if (strcasecmp(optarg, "off") == 0) {
+				move_to_root_cgroup = MOVE_TO_ROOT_CGROUP_MODE_OFF;
+			} else if (strcasecmp(optarg, "auto") == 0) {
+				move_to_root_cgroup = MOVE_TO_ROOT_CGROUP_MODE_AUTO;
+			} else {
+				errx(1, "Move to root cgroup mode %s is invalid", optarg);
+			}
 			break;
 		case 'p':
 			set_prio = 0;
@@ -737,12 +764,22 @@ main(int argc, char **argv)
 
 	utils_mlockall();
 
-	if (move_to_root_cgroup) {
+	if (move_to_root_cgroup == MOVE_TO_ROOT_CGROUP_MODE_ON) {
 		utils_move_to_root_cgroup();
 	}
 
 	if (set_prio) {
-		utils_set_rr_scheduler();
+		silent = (move_to_root_cgroup == MOVE_TO_ROOT_CGROUP_MODE_AUTO);
+
+		if (utils_set_rr_scheduler(silent) == -1 &&
+		    move_to_root_cgroup == MOVE_TO_ROOT_CGROUP_MODE_AUTO) {
+			/*
+			 * Try to move process to root cgroup and try set priority again
+			 */
+			utils_move_to_root_cgroup();
+
+			(void)utils_set_rr_scheduler(0);
+		}
 	}
 
 	signal_handlers_register();

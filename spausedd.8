@@ -15,7 +15,7 @@
 .\"
 .\" Author: Jan Friesse <jfriesse@redhat.com>
 .\"
-.Dd May 20, 2020
+.Dd Jul 15, 2021
 .Dt SPAUSEDD 8
 .Os
 .Sh NAME
@@ -25,6 +25,7 @@
 .Nm
 .Op Fl dDfhp
 .Op Fl m Ar steal_threshold
+.Op Fl P Ar mode
 .Op Fl t Ar timeout
 .Sh DESCRIPTION
 The
@@ -66,16 +67,30 @@ Run on foreground (do not demonize - default).
 Show help.
 .It Fl p
 Do not set RR scheduler.
-.It Fl P
-Do not move process to root cgroup.
+.It Fl m Ar steal_threshold
+Set steal threshold percent. (default is 10 if kernel information is used and
+100 if VMGuestLib is used).
+.It Fl P Ar mode
+Set mode of moving process to root cgroup. Default is
+.Cm auto
+which first checks if setting of RR scheduler is enabled. If so, it tries to set RR scheduler.
+If this fails, process is moved to root cgroup and set of RR scheduler is retried.
+Another options are
+.Cm on
+when process is always moved to root cgroup and
+.Cm off
+which makes
+.Nm
+to never try move pid into root cgroup.
 It's worth noting that currently (May 3 2021) cgroup v2 doesn’t yet
-support control of realtime processes and the cpu controller can only be
-enabled when all RT processes are in the root cgroup. So when this option
-is used together with systemd, it may be impossible to make systemd options
-like CPUQuota working correctly until
+support control of realtime processes and, for systems with CONFIG_RT_GROUP_SCHED
+kernel option enabled, the cpu controller can only be
+enabled when all RT processes are in the root cgroup. So when moving to
+root cgroup is disabled and used together with systemd, it may be
+impossible to make systemd options like CPUQuota working correctly until
 .Nm
 is stopped.
-Also when this option is used together with cgroup v2 and systemd
+Also when moving to root cgroup is used together with cgroup v2 and systemd
 it makes impossible (most of the time) for journald to add systemd specific
 metadata (most importantly _SYSTEMD_UNIT) properly, because
 .Nm
@@ -91,9 +106,6 @@ Problem is even worse because journald caches pid for some time
 (approx. 5 sec) so initial
 .Nm
 messages have correct metadata.
-.It Fl m Ar steal_threshold
-Set steal threshold percent. (default is 10 if kernel information is used and
-100 if VMGuestLib is used).
 .It Fl t Ar timeout
 Set timeout value in milliseconds (default 200).
 .El
